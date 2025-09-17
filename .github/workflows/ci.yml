@@ -1,0 +1,41 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Etiqueta de Cucumber (ej. @Compra_Sauce_Demo)'
+        required: true
+        default: '@Compra_Sauce_Demo'
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 🧾 Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: 🟢 Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: 📦 Instalar dependencias
+        run: npm install
+
+      - name: 🧪 Instalar navegadores de Playwright
+        run: npx playwright install --with-deps
+
+      - name: 🚀 Ejecutar pruebas con etiqueta dinámica
+        run: npm run cucumber-test-uat -- --tags="${{ github.event.inputs.tag }}"
+
+      - name: 📊 Subir reporte HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
