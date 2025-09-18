@@ -10,7 +10,7 @@ export default class LoginPage {
     }
 
     async navigate(){
-        await global.page.goto(process.env.BASEURL,{timeout:6000});  
+        await global.page.goto(process.env.BASEURL,{timeout:10000});  
     }
     
     async enterCredentials(){
