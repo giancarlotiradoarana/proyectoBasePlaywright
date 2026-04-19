@@ -1,25 +1,31 @@
-import { After, AfterAll, AfterStep, Before, BeforeAll, setDefaultTimeout } from "@cucumber/cucumber";
-import { invokeBrowser } from "../helper/browsers/browserManager";
-const os = require('os');
+import {
+  After,
+  AfterAll,
+  AfterStep,
+  Before,
+  BeforeAll,
+  setDefaultTimeout
+} from "@cucumber/cucumber";
+
+import { chromium, firefox, webkit } from "@playwright/test";
 import { getEnv } from "../helper/env/env";
-const { chromium, firefox, webkit } = require('@playwright/test')
-
-
+import * as os from "os";
 setDefaultTimeout(270000);
-//condición para ejecución con 1 solo login
-global.executionWith1Login = false;
-//condición para ejecución con Chrome
-global.executionWithChrome = true;
+
+// Flags globales (si decides seguir usándolas)
+//global.executionWith1Login = false;
+//global.executionWithChrome = true;
 
 let chromeDir = "";
+
 if (os.platform().includes("win")) {
   chromeDir = "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default";
-}
-else {
-  chromeDir = "~/.config/chromium"
+} else {
+  chromeDir = "~/.config/chromium";
 }
 
-const TAG = "@chrome"
+const TAG = "@chrome";
+
 const options = {
   headless: false,
   timeout: 70000,
@@ -27,38 +33,17 @@ const options = {
   ignoreHTTPSErrors: true,
   acceptInsecureCerts: true,
   args: [
-    "--use-fake-ui-for-media-stream",
-    "--use-fake-device-for-media-stream",
     "--no-sandbox",
-    "--no-zygote",
-    '--disable-gpu',
-    '--disable-dev-shm-usage',
-    '--disable-setuid-sandbox',
-    '--no-first-run',
-    '--deterministic-fetch',
-    '--disable-features=IsolateOrigins',
-    '--disable-site-isolation-trials',
-    '--disable-web-security',
-    '--allow-file-access-from-files',
-    '--disable-web-security',
-    '--disable-web-security',
-    '--allow-insecure-localhost',
-    '--ignore-certificate-errors',
-    '--no-sandbox',
-    '-–allow-file-access-from-files'
-
-
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--disable-web-security",
+    "--allow-insecure-localhost",
+    "--ignore-certificate-errors"
   ],
   firefoxUserPrefs: {
     "media.navigator.streams.fake": true,
-    "media.navigator.permission.disabled": true,
-  },
-
-};
-
-export const config = {
-  options,
-  IMG_THRESHOLD: { threshold: 0.4 }
+    "media.navigator.permission.disabled": true
+  }
 };
 
 enum BROWSER {
@@ -67,60 +52,45 @@ enum BROWSER {
   SAFARI = "safari"
 }
 
-BeforeAll(async function () {
-    getEnv();
-    console.log("before all ...");
-    if (TAG.includes(BROWSER.CHROME)) {
-      if (global.executionWithChrome) {
-        if (global.executionWith1Login)
-          global.browser = await chromium.launchPersistentContext(chromeDir, options);
-      } else
-        global.browser = await chromium.launch(options);
-    } else if (TAG.includes(BROWSER.FIREFOX)) {
-      global.browser = await firefox.launch(options);
-    } else if (TAG.includes(BROWSER.SAFARI)) {
-      global.browser = await webkit.launch(options);
-    } else {
-      global.browser = await chromium.launch(options);
-    }
-    if (global.executionWith1Login) {
-      if (!global.executionWithChrome)
-        global.context = await global.browser.newContext();
-      global.page = await global.browser.newPage();
-    }
-});
+let browser: any;
+let context: any;
 
-Before(async function () {
-    console.log("before ...");
-  if (!global.executionWith1Login) {
-    if (global.executionWithChrome)
-      global.browser = await chromium.launchPersistentContext(chromeDir, options);
-    else
-      global.context = await global.browser.newContext();
-    global.page = await global.browser.newPage();
+BeforeAll(async function () {
+  getEnv();
+  console.log("before all ...");
+
+  if (TAG.includes(BROWSER.CHROME)) {
+    browser = await chromium.launch(options);
+  } else if (TAG.includes(BROWSER.FIREFOX)) {
+    browser = await firefox.launch(options);
+  } else if (TAG.includes(BROWSER.SAFARI)) {
+    browser = await webkit.launch(options);
+  } else {
+    browser = await chromium.launch(options);
   }
 });
 
-After(async function () {
-    console.log("after pass...");
-    if (!global.executionWith1Login) {
-      await global.page.close();
-      if (!global.executionWithChrome)
-        await global.context.close();
-      else
-        await global.browser.close();
-    }
-});
+Before(async function () {
+  console.log("before scenario ...");
 
-AfterAll(async function () {
-   console.log("after all ...");
-  if (!(!global.executionWith1Login && global.executionWithChrome))
-    await global.browser.close();
+  context = await browser.newContext();
+  this.page = await context.newPage();
 });
 
 AfterStep(async function () {
-    const img = await global.page.screenshot({ type: "png" });
-    await this.attach(img, "image/png");
-})
+  const img = await this.page.screenshot({ type: "png" });
+  await this.attach(img, "image/png");
+});
 
+After(async function () {
+  console.log("after scenario ...");
 
+  await this.page?.close();
+  await context?.close();
+});
+
+AfterAll(async function () {
+  console.log("after all ...");
+
+  await browser?.close();
+});
